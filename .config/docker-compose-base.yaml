@@ -1,0 +1,33 @@
+services:
+  grafana:
+    user: root
+    container_name: 'wso2-rca-app'
+
+    build:
+      context: .
+      args:
+        grafana_image: ${GRAFANA_IMAGE:-grafana-enterprise}
+        grafana_version: ${GRAFANA_VERSION:-13.1.0}
+        development: ${DEVELOPMENT:-false}
+        anonymous_auth_enabled: ${ANONYMOUS_AUTH_ENABLED:-true}
+    ports:
+      - 3000:3000/tcp
+      - 2345:2345/tcp # delve
+    security_opt:
+      - 'apparmor:unconfined'
+      - 'seccomp:unconfined'
+    cap_add:
+      - SYS_PTRACE
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ../dist:/var/lib/grafana/plugins/wso2-rca-app
+      - ../provisioning:/etc/grafana/provisioning
+      - ..:/root/wso2-rca-app
+
+    environment:
+      NODE_ENV: development
+      GF_LOG_FILTERS: plugin.wso2-rca-app:debug
+      GF_LOG_LEVEL: debug
+      GF_DATAPROXY_LOGGING: 1
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: wso2-rca-app
+      GF_INSTALL_PLUGINS: grafana-llm-app 
