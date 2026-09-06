@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
-
-	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 )
 
 // LokiClient talks to Loki through Grafana's own datasource proxy
@@ -35,99 +33,10 @@ func NewLokiClient() *LokiClient {
 	}
 }
 
-type SpikeWindow struct {
-	Namespace  string    `json:"namespace"`
-	From       time.Time `json:"from"`
-	To         time.Time `json:"to"`
-	ErrorCount int       `json:"errorCount"`
-	Baseline   float64   `json:"baseline"`
-	ZScore     float64   `json:"zScore"`
-}
-
-// DetectSpikes runs a count_over_time query per namespace across [from,to],
-// computes a rolling baseline (mean/stddev over BaselineLookbackMinutes) and
-// returns buckets whose error count exceeds ZScoreThreshold standard
-// deviations above baseline, sorted by z-score descending.
-func (c *LokiClient) DetectSpikes(
-	ctx context.Context,
-	datasourceUID, namespaceLabel, nodeLabel string,
-	namespaces []NamespaceRules,
-	from, to time.Time,
-	cfg SpikeDetectionConfig,
-) ([]SpikeWindow, error) {
-	bucket := time.Duration(cfg.BucketMinutes) * time.Minute
-	if bucket <= 0 {
-		bucket = time.Minute
-	}
-
-	spikes := make([]SpikeWindow, 0)
-	for _, ns := range namespaces {
-		query := fmt.Sprintf(
-			`sum(count_over_time({%s="%s"} |~ "(?i)(error|failed|fatal)" [%s]))`,
-			namespaceLabel, ns.Name, bucket.String(),
-		)
-		series, err := c.queryRange(ctx, datasourceUID, query, from, to, bucket)
-		if err != nil {
-			log.DefaultLogger.Warn("spike detection query failed", "namespace", ns.Name, "error", err)
-			continue
-		}
-
-		mean, stddev := meanStddev(series)
-		for _, pt := range series {
-			if stddev == 0 {
-				continue
-			}
-			z := (pt.value - mean) / stddev
-			if z >= cfg.ZScoreThreshold {
-				spikes = append(spikes, SpikeWindow{
-					Namespace:  ns.Name,
-					From:       pt.ts,
-					To:         pt.ts.Add(bucket),
-					ErrorCount: int(pt.value),
-					Baseline:   mean,
-					ZScore:     z,
-				})
-			}
-		}
-	}
-	if nodeLabel != "" {
-		query := fmt.Sprintf(`sum(count_over_time({%s=~".+"} |~ "(?i)(error|failed|fatal)" [%s]))`, nodeLabel, bucket.String())
-		series, err := c.queryRange(ctx, datasourceUID, query, from, to, bucket)
-		if err != nil {
-			log.DefaultLogger.Warn("spike detection query failed", "nodeLabel", nodeLabel, "error", err)
-		} else {
-			mean, stddev := meanStddev(series)
-			for _, pt := range series {
-				if stddev == 0 {
-					continue
-				}
-				z := (pt.value - mean) / stddev
-				if z >= cfg.ZScoreThreshold {
-					spikes = append(spikes, SpikeWindow{
-						Namespace:  "node",
-						From:       pt.ts,
-						To:         pt.ts.Add(bucket),
-						ErrorCount: int(pt.value),
-						Baseline:   mean,
-						ZScore:     z,
-					})
-				}
-			}
-		}
-	}
-
-	// Highest z-score first.
-	for i := 1; i < len(spikes); i++ {
-		for j := i; j > 0 && spikes[j].ZScore > spikes[j-1].ZScore; j-- {
-			spikes[j], spikes[j-1] = spikes[j-1], spikes[j]
-		}
-	}
-	return spikes, nil
-}
-
 type LogLine struct {
 	Timestamp time.Time
 	Line      string
+	Labels    map[string]string
 }
 
 // FetchLogs pulls raw log lines for one namespace within [from,to]. Callers
@@ -135,7 +44,10 @@ type LogLine struct {
 // rather than forwarding raw lines further downstream, to keep volume and
 // LLM token usage bounded.
 func (c *LokiClient) FetchLogs(ctx context.Context, datasourceUID, namespaceLabel, namespace string, from, to time.Time) ([]LogLine, error) {
-	query := fmt.Sprintf(`{%s="%s"}`, namespaceLabel, namespace)
+	query, err := buildLabelQuery(namespaceLabel, namespace)
+	if err != nil {
+		return nil, err
+	}
 	return c.queryLogRange(ctx, datasourceUID, query, from, to)
 }
 
@@ -143,8 +55,20 @@ func (c *LokiClient) FetchNodeLogs(ctx context.Context, datasourceUID, nodeLabel
 	if nodeLabel == "" {
 		return nil, nil
 	}
+	if !labelNamePattern.MatchString(nodeLabel) {
+		return nil, fmt.Errorf("invalid node label %q", nodeLabel)
+	}
 	query := fmt.Sprintf(`{%s=~".+"}`, nodeLabel)
 	return c.queryLogRange(ctx, datasourceUID, query, from, to)
+}
+
+var labelNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+func buildLabelQuery(label, value string) (string, error) {
+	if !labelNamePattern.MatchString(label) {
+		return "", fmt.Errorf("invalid namespace label %q", label)
+	}
+	return fmt.Sprintf("{%s=%s}", label, strconv.Quote(value)), nil
 }
 
 // ---- internals ----
@@ -152,24 +76,6 @@ func (c *LokiClient) FetchNodeLogs(ctx context.Context, datasourceUID, nodeLabel
 type point struct {
 	ts    time.Time
 	value float64
-}
-
-func meanStddev(points []point) (float64, float64) {
-	if len(points) == 0 {
-		return 0, 0
-	}
-	var sum float64
-	for _, p := range points {
-		sum += p.value
-	}
-	mean := sum / float64(len(points))
-
-	var variance float64
-	for _, p := range points {
-		variance += (p.value - mean) * (p.value - mean)
-	}
-	variance /= float64(len(points))
-	return mean, math.Sqrt(variance)
 }
 
 // queryRange calls Loki's /loki/api/v1/query_range with a metric query and
@@ -278,7 +184,11 @@ func (c *LokiClient) queryLogRange(ctx context.Context, datasourceUID, query str
 			if err != nil {
 				continue
 			}
-			lines = append(lines, LogLine{Timestamp: time.Unix(0, nanos), Line: entry[1]})
+			lines = append(lines, LogLine{
+				Timestamp: time.Unix(0, nanos),
+				Line:      entry[1],
+				Labels:    stream.Stream,
+			})
 		}
 	}
 	return lines, nil
@@ -295,7 +205,8 @@ type lokiMatrixResponse struct {
 type lokiStreamsResponse struct {
 	Data struct {
 		Result []struct {
-			Values [][2]string `json:"values"`
+			Stream map[string]string `json:"stream"`
+			Values [][2]string       `json:"values"`
 		} `json:"result"`
 	} `json:"data"`
 }

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+apps:
+  - type: 'wso2-rca-app'
+    org_id: 1
+    org_name: 'wso2'
+    disabled: false
+    jsonData:
+      apiUrl: http://default-url.com
+    secureJsonData:
+      apiKey: secret-key

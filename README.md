@@ -65,6 +65,23 @@ App plugins can let you create a custom out-of-the-box monitoring experience by 
    npm run server
    ```
 
+   This builds for the current Docker host. To publish one image that works on
+   both Apple Silicon Macs and Linux `amd64` machines, log in to the registry
+   and run. On Linux, install arm64 emulation once first; Docker Desktop
+   normally provides it automatically:
+
+   ```bash
+   # Linux only
+   docker run --privileged --rm tonistiigi/binfmt --install arm64
+
+   docker buildx create --use --name wso2-rca-builder
+   docker buildx inspect --bootstrap
+   IMAGE=sathindu/wso2-rca-app:latest npm run docker:build:multiarch
+   ```
+
+   The command publishes a multi-platform image manifest. Use `IMAGE` to
+   publish a different registry image or tag.
+
 6. Run the E2E tests (using Playwright)
 
    ```bash

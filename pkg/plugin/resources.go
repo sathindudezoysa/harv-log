@@ -26,54 +26,6 @@ func (t timeRangeDTO) parse() (time.Time, time.Time, error) {
 	return from, to, nil
 }
 
-// ---- POST /rca/detect-spikes ----
-
-type detectSpikesRequest struct {
-	Around            *timeRangeDTO `json:"around"`
-	LokiDatasourceUID string        `json:"lokiDatasourceUid"`
-}
-
-func (a *App) handleDetectSpikes(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	var req detectSpikesRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-
-	to := time.Now()
-	from := to.Add(-6 * time.Hour)
-	if req.Around != nil {
-		if f, t, err := req.Around.parse(); err == nil {
-			from, to = f, t
-		}
-	}
-
-	uid := req.LokiDatasourceUID
-	if uid == "" {
-		uid = a.settings.LokiDatasourceUID
-	}
-
-	spikes, err := a.loki.DetectSpikes(ctx, uid, a.settings.NamespaceLabel, a.settings.NodeLabel, a.rules.Namespaces(), from, to, a.rules.SpikeDetection)
-	if err != nil {
-		writeErr(w, http.StatusBadGateway, err)
-		return
-	}
-
-	resp := map[string]interface{}{"spikes": spikes}
-	if len(spikes) > 0 {
-		// Suggest the single highest z-score spike, padded by a few minutes
-		// on each side so we don't clip the leading/trailing signal.
-		best := spikes[0]
-		pad := 5 * time.Minute
-		resp["suggestedWindow"] = timeRangeDTO{
-			From: best.From.Add(-pad).Format(time.RFC3339),
-			To:   best.To.Add(pad).Format(time.RFC3339),
-		}
-	}
-	writeJSON(w, resp)
-}
-
 // ---- POST /rca/analyze ----
 
 type analyzeRequest struct {

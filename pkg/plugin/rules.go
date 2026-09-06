@@ -13,7 +13,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed rca-rules.yaml
 var embeddedRules []byte
 
 type Severity string
@@ -39,17 +38,10 @@ type NamespaceRules struct {
 	Patterns []Pattern `yaml:"patterns" json:"patterns"`
 }
 
-type SpikeDetectionConfig struct {
-	BucketMinutes           int     `yaml:"bucket_minutes" json:"bucketMinutes"`
-	BaselineLookbackMinutes int     `yaml:"baseline_lookback_minutes" json:"baselineLookbackMinutes"`
-	ZScoreThreshold         float64 `yaml:"zscore_threshold" json:"zscoreThreshold"`
-}
-
 type Ruleset struct {
-	CorrelationOrder []string             `yaml:"correlation_order" json:"correlationOrder"`
-	SpikeDetection   SpikeDetectionConfig `yaml:"spike_detection" json:"spikeDetection"`
-	NamespacesRaw    []NamespaceRules     `yaml:"namespaces" json:"namespaces"`
-	NodePatterns     []Pattern            `yaml:"node_patterns" json:"nodePatterns"`
+	CorrelationOrder []string         `yaml:"correlation_order" json:"correlationOrder"`
+	NamespacesRaw    []NamespaceRules `yaml:"namespaces" json:"namespaces"`
+	NodePatterns     []Pattern        `yaml:"node_patterns" json:"nodePatterns"`
 }
 
 func (r *Ruleset) warmRegexCache() {

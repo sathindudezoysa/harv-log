@@ -16,6 +16,7 @@ function eventQuestion(event: MatchedEvent, additional: boolean) {
 Event context:
 - Time: ${event.firstSeen}${event.lastSeen !== event.firstSeen ? ` to ${event.lastSeen}` : ''}
 - Namespace: ${event.namespace}
+- Node: ${event.node ?? 'Not applicable'}
 - Category: ${event.category}
 - Severity: ${event.severity}
 - Pattern: ${event.patternId}
@@ -36,6 +37,11 @@ function EventRow({ event, onAskAI }: { event: MatchedEvent; onAskAI: (event: Ma
               <Stack direction="row" gap={1} alignItems="center">
                 <Badge color={SEVERITY_COLOR[event.severity] ?? 'blue'} text={event.severity} />
                 <Text weight="medium">{event.namespace}</Text>
+                {event.node && (
+                  <Text color="secondary" variant="bodySmall">
+                    {event.node}
+                  </Text>
+                )}
                 <Text color="secondary" variant="bodySmall">
                   {event.category} · {event.patternId}
                 </Text>

@@ -13,9 +13,9 @@ interface JsonData {
 type Props = PluginConfigPageProps<AppPluginMeta<JsonData>>;
 
 export function ConfigPage({ plugin }: Props) {
-  const [lokiUid, setLokiUid] = useState(plugin.meta.jsonData?.lokiDatasourceUid ?? '');
+  const [lokiUid, setLokiUid] = useState(plugin.meta.jsonData?.lokiDatasourceUid ?? 'loki');
   const [namespaceLabel, setNamespaceLabel] = useState(plugin.meta.jsonData?.namespaceLabel ?? 'namespace');
-  const [nodeLabel, setNodeLabel] = useState(plugin.meta.jsonData?.nodeLabel ?? '');
+  const [nodeLabel, setNodeLabel] = useState(plugin.meta.jsonData?.nodeLabel ?? 'node');
   const [saving, setSaving] = useState(false);
 
   const onSave = async () => {

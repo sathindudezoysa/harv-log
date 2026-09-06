@@ -8,14 +8,7 @@ correlation_order:
   - harvester-system
   - longhorn-system
   - kube-system
-
-# Baseline window (minutes) used for spike z-score calculation, and the
-# bucket size for count_over_time() queries.
-spike_detection:
-  bucket_minutes: 1
-  baseline_lookback_minutes: 60
-  zscore_threshold: 3.0
-
+  
 namespaces:
   - name: cattle-system
     patterns:

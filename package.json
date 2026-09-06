@@ -2,8 +2,8 @@
   "name": "rca",
   "version": "1.0.0",
   "scripts": {
-    "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
-    "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
+    "build": "webpack -c ./webpack.config.ts --env production",
+    "dev": "webpack -w -c ./webpack.config.ts --env development",
     "test": "jest --watch --onlyChanged",
     "test:ci": "jest --passWithNoTests --maxWorkers 4",
     "typecheck": "tsc --noEmit",
@@ -11,6 +11,7 @@
     "lint:fix": "npm run lint -- --fix && prettier --write --list-different .",
     "e2e": "playwright test",
     "server": "docker compose up --build",
+    "docker:build:multiarch": "docker buildx build --platform linux/amd64,linux/arm64 --build-arg grafana_image=${GRAFANA_IMAGE:-grafana} --build-arg grafana_version=${GRAFANA_VERSION:-13.1.0} --tag ${IMAGE:-sathindu/wso2-rca-app:latest} --file .config/Dockerfile .config --push",
     "sign": "sign-plugin"
   },
   "author": "Wso2",

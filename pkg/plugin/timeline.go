@@ -9,6 +9,7 @@ import (
 type MatchedEvent struct {
 	PatternID       string    `json:"patternId"`
 	Namespace       string    `json:"namespace"`
+	Node            string    `json:"node,omitempty"`
 	Category        string    `json:"category"`
 	Severity        Severity  `json:"severity"`
 	RuleDescription string    `json:"ruleDescription"`
@@ -112,11 +113,17 @@ func BuildTimeline(
 			for _, line := range nodeLines {
 				for _, pattern := range rules.MatchNodeLines(line.Line) {
 					matchedCount++
-					ev, ok := collapsed[pattern.ID]
+					nodeName := line.Labels[nodeLabel]
+					if nodeName == "" {
+						nodeName = "unknown"
+					}
+					key := pattern.ID + "\x00" + nodeName
+					ev, ok := collapsed[key]
 					if !ok {
 						ev = &MatchedEvent{
 							PatternID:       pattern.ID,
 							Namespace:       "node",
+							Node:            nodeName,
 							Category:        pattern.Category,
 							Severity:        pattern.Severity,
 							RuleDescription: pattern.Description,
@@ -125,7 +132,7 @@ func BuildTimeline(
 							Sample:          truncate(line.Line, 300),
 							LogLine:         line.Line,
 						}
-						collapsed[pattern.ID] = ev
+						collapsed[key] = ev
 					}
 					ev.Count++
 					if line.Timestamp.Before(ev.FirstSeen) {

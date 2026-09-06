@@ -5,18 +5,10 @@ export interface TimeRange {
   to: string; // RFC3339
 }
 
-export interface SpikeWindow {
-  namespace: string;
-  from: string;
-  to: string;
-  errorCount: number;
-  baseline: number;
-  zScore: number;
-}
-
 export interface MatchedEvent {
   patternId: string;
   namespace: string;
+  node?: string;
   category: string;
   severity: Severity;
   ruleDescription?: string;
@@ -38,16 +30,6 @@ export interface RcaRequest {
   namespaces?: string[]; // defaults to correlation_order from rca-rules.yaml
   lokiDatasourceUid: string;
   nodeLabel?: string;
-}
-
-export interface DetectSpikesRequest {
-  around?: TimeRange; // optional wider search window, defaults to last 6h
-  lokiDatasourceUid: string;
-}
-
-export interface DetectSpikesResponse {
-  spikes: SpikeWindow[];
-  suggestedWindow?: TimeRange;
 }
 
 export interface RcaAnalyzeResponse {

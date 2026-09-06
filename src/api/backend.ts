@@ -1,7 +1,5 @@
 import { getBackendSrv } from '@grafana/runtime';
 import type {
-  DetectSpikesRequest,
-  DetectSpikesResponse,
   RcaAnalyzeResponse,
   RcaRequest,
   Timeline,
@@ -11,9 +9,6 @@ import type {
 const PLUGIN_ID = 'wso2-rca-app';
 const RESOURCE_BASE = `/api/plugins/${PLUGIN_ID}/resources`;
 
-export async function detectSpikes(req: DetectSpikesRequest): Promise<DetectSpikesResponse> {
-  return getBackendSrv().post(`${RESOURCE_BASE}/rca/detect-spikes`, req);
-}
 
 export async function analyze(req: RcaRequest): Promise<RcaAnalyzeResponse> {
   return getBackendSrv().post(`${RESOURCE_BASE}/rca/analyze`, req);
