@@ -11,7 +11,7 @@
     "lint:fix": "npm run lint -- --fix && prettier --write --list-different .",
     "e2e": "playwright test",
     "server": "docker compose up --build",
-    "docker:build:multiarch": "docker buildx build --platform linux/amd64,linux/arm64 --build-arg grafana_image=${GRAFANA_IMAGE:-grafana} --build-arg grafana_version=${GRAFANA_VERSION:-13.1.0} --tag ${IMAGE:-sathindu/wso2-rca-app:latest} --file .config/Dockerfile .config --push",
+    "docker:build:multiarch": "docker run --privileged --rm tonistiigi/binfmt --install arm64 >/dev/null && (docker buildx inspect harv-logs-builder >/dev/null 2>&1 || docker buildx create --name harv-logs-builder --driver docker-container --use) && docker buildx use harv-logs-builder && docker buildx inspect --bootstrap && docker buildx build --platform linux/amd64,linux/arm64 --build-arg grafana_image=${GRAFANA_IMAGE:-grafana} --build-arg grafana_version=${GRAFANA_VERSION:-13.1.0} --tag ${IMAGE:-sathindu/harv-logs:latest} --file .config/Dockerfile .config --push",
     "sign": "sign-plugin"
   },
   "author": "Wso2",

@@ -1,8 +1,8 @@
 services:
   grafana:
     user: root
-    container_name: 'wso2-rca-app'
-    image: sathindu/wso2-rca-app:latest
+    container_name: 'harv-logs'
+    image: sathindu/harv-logs:latest
 
     build:
       context: .
@@ -21,14 +21,14 @@ services:
       - SYS_PTRACE
     volumes:
       - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-      - ../dist:/var/lib/grafana/plugins/wso2-rca-app
+      - ../dist:/var/lib/grafana/plugins/harv-logs
       - ../provisioning:/etc/grafana/provisioning
-      - ..:/root/wso2-rca-app
+      - ..:/root/harv-logs
 
     environment:
       NODE_ENV: development
-      GF_LOG_FILTERS: plugin.wso2-rca-app:debug
+      GF_LOG_FILTERS: plugin.harv-logs:debug
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: wso2-rca-app
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: harv-logs
       GF_INSTALL_PLUGINS: grafana-llm-app 

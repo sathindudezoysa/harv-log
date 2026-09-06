@@ -92,7 +92,7 @@ The plugin uses Grafana's `grafana-llm-app` for AI completions. It does not repl
 
    docker buildx create --use --name wso2-rca-builder
    docker buildx inspect --bootstrap
-   IMAGE=sathindu/wso2-rca-app:latest npm run docker:build:multiarch
+   IMAGE=sathindu/harv-logs:latest npm run docker:build:multiarch
    ```
 
    The command publishes a multi-platform image manifest. Use `IMAGE` to

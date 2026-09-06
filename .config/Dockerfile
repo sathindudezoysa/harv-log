@@ -72,7 +72,7 @@ RUN if [ "${development}" = "true" ]; then \
 RUN sed -i 's|</body>|<script src="http://localhost:35729/livereload.js"></script></body>|g' /usr/share/grafana/public/views/index.html
 
 
-COPY dist /var/lib/grafana/plugins/wso2-rca-app
+COPY dist /var/lib/grafana/plugins/harv-logs
 COPY provisioning /etc/grafana/provisioning
 
 COPY entrypoint.sh /entrypoint.sh

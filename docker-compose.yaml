@@ -3,6 +3,7 @@ services:
     extends:
       file: .config/docker-compose-base.yaml
       service: grafana
+    container_name: 'harv-logs'
     volumes:
       - ./dist:/var/lib/grafana/plugins/harv-logs
       - ./rules/rca-rules.yaml:/var/lib/grafana/plugins/harv-logs/rules/rca-rules.yaml:ro
