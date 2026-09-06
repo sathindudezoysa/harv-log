@@ -38,7 +38,7 @@ func NewLLMClient() *LLMClient {
 	}
 	model := os.Getenv("RCA_LLM_MODEL")
 	if model == "" {
-		model = "base" // adjust to whatever model your grafana-llm-app + Gemini key config uses
+		model = "base"
 	}
 	return &LLMClient{
 		grafanaBaseURL: base,

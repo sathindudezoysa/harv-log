@@ -4,9 +4,9 @@ services:
       file: .config/docker-compose-base.yaml
       service: grafana
     volumes:
-      - ./dist:/var/lib/grafana/plugins/wso2-rca-app
-      - ./rules/rca-rules.yaml:/var/lib/grafana/plugins/wso2-rca-app/rules/rca-rules.yaml:ro
+      - ./dist:/var/lib/grafana/plugins/harv-logs
+      - ./rules/rca-rules.yaml:/var/lib/grafana/plugins/harv-logs/rules/rca-rules.yaml:ro
       - ./provisioning:/etc/grafana/provisioning
-      - .:/root/wso2-rca-app
+      - .:/root/harv-logs
     environment:
-      RCA_RULES_PATH: /var/lib/grafana/plugins/wso2-rca-app/rules/rca-rules.yaml
+      RCA_RULES_PATH: /var/lib/grafana/plugins/harv-logs/rules/rca-rules.yaml

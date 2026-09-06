@@ -6,7 +6,7 @@ import type {
   MatchedEvent,
 } from '../types/rca';
 
-const PLUGIN_ID = 'wso2-rca-app';
+const PLUGIN_ID = 'harv-logs';
 const RESOURCE_BASE = `/api/plugins/${PLUGIN_ID}/resources`;
 
 

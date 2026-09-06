@@ -1,50 +1,30 @@
-<!-- This README file is going to be the one displayed on the Grafana.com website for your plugin. Uncomment and replace the content here before publishing.
+# Harv-logs
 
-Remove any remaining comments before publishing as these may be displayed on Grafana.com -->
+Harv-logs is a Grafana app for root-cause analysis of Harvester support-bundle logs. It combines Loki queries, rule-based log matching, and AI-assisted investigation in one workflow.
 
-# Rca
+## Features
 
-<!-- To help maximize the impact of your README and improve usability for users, we propose the following loose structure:
-
-**BEFORE YOU BEGIN**
-- Ensure all links are absolute URLs so that they will work when the README is displayed within Grafana and Grafana.com
-- Be inspired ✨
-  - [grafana-polystat-panel](https://github.com/grafana/grafana-polystat-panel)
-  - [volkovlabs-variable-panel](https://github.com/volkovlabs/volkovlabs-variable-panel)
-
-**ADD SOME BADGES**
-
-Badges convey useful information at a glance for users whether in the Catalog or viewing the source code. You can use the generator on [Shields.io](https://shields.io/badges/dynamic-json-badge) together with the Grafana.com API
-to create dynamic badges that update automatically when you publish a new version to the marketplace.
-
-- For the URL parameter use `https://grafana.com/api/plugins/your-plugin-id`.
-- Example queries:
-  - Downloads: `$.downloads`
-  - Catalog Version: `$.version`
-  - Grafana Dependency: `$.grafanaDependency`
-  - Signature Type: `$.versionSignatureType`
-- Optionally, for the logo parameter use `grafana`.
-
-Full example: ![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?logo=grafana&query=$.version&url=https://grafana.com/api/plugins/grafana-polystat-panel&label=Marketplace&prefix=v&color=F47A20)
-
-Consider other [badges](https://shields.io/badges) as you feel appropriate for your project.
-
-## Overview / Introduction
-Provide one or more paragraphs as an introduction to your plugin to help users understand why they should use it.
-
-Consider including screenshots:
-- in [plugin.json](https://grafana.com/developers/plugin-tools/reference/plugin-json#info) include them as relative links.
-- in the README ensure they are absolute URLs.
+- Select a time range for an incident investigation.
+- Correlate recognized events across Harvester namespaces and optional node-level logs.
+- Review events in a time-ordered timeline grouped by namespace.
+- See event severity, category, pattern, timestamps, occurrence counts, and representative log lines.
+- Generate a streaming AI root-cause report with suggested next checks.
+- Ask follow-up questions about individual events in an AI chat.
+- Configure the Loki datasource UID, namespace label, and optional node label.
 
 ## Requirements
-List any requirements or dependencies they may need to run the plugin.
 
-## Getting Started
-Provide a quick start on how to configure and use the plugin.
+- Grafana 12.3.0 or newer.
+- A Loki datasource containing Harvester support-bundle logs.
+- The `grafana-llm-app` installed and configured for AI completions.
+- Loki labels matching the namespace and optional node label settings.
 
-## Documentation
-If your project has dedicated documentation available for users, provide links here. For help in following Grafana's style recommendations for technical documentation, refer to our [Writer's Toolkit](https://grafana.com/docs/writers-toolkit/).
+## Getting started
 
-## Contributing
-Do you want folks to contribute to the plugin or provide feedback through specific means? If so, tell them how!
--->
+1. Open the **Configuration** page for Harv-logs.
+2. Set the Loki datasource UID that contains the support-bundle logs.
+3. Confirm the namespace label and, if needed, set the node label used by Loki.
+4. Open the **RCA** page and select the incident time window.
+5. Review the correlated timeline, generate the AI root-cause report, or ask about a specific event.
+
+The correlation rules are packaged with the plugin in `rules/rca-rules.yaml`. The plugin uses the configured `grafana-llm-app` for report and event-chat responses.

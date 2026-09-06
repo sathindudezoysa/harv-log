@@ -1,10 +1,26 @@
-# Grafana app plugin template
+# Harv-logs
 
-This template is a starting point for building an app plugin for Grafana.
+Harv-logs is a Grafana app for investigating incidents in Harvester support-bundle logs. It queries a configured Loki datasource, correlates recognized log patterns across the relevant namespaces and optional node streams, and presents the results as a time-ordered incident timeline.
 
-## What are Grafana app plugins?
+## Plugin overview
 
-App plugins can let you create a custom out-of-the-box monitoring experience by custom pages, nested data sources and panel plugins.
+Harv-logs helps operators move from a time window to an explainable investigation:
+
+- Select an incident window and analyze the matching Harvester logs.
+- Correlate events across configured namespaces and optional node-level logs.
+- Group matches by namespace and show severity, category, pattern, timestamps, counts, and sample lines.
+- Generate a streaming AI root-cause analysis with likely causes and recommended next checks.
+- Ask follow-up questions about individual log events through the built-in AI chat.
+- Configure the Loki datasource UID, namespace label, and optional node label from Grafana.
+
+The plugin uses Grafana's `grafana-llm-app` for AI completions. It does not replace Loki or the configured rule set; it turns their log data and pattern matches into an investigation view.
+
+## Requirements
+
+- Grafana 12.3.0 or newer.
+- A Loki datasource containing Harvester support-bundle logs.
+- The `grafana-llm-app` configured for AI report and chat generation.
+- Loki labels for namespaces and, optionally, nodes.
 
 ## Get started
 
