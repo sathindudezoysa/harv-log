@@ -34,6 +34,18 @@ export function RcaReport({ timeline }: { timeline: Timeline }) {
     return renderMarkdown(text);
   }, [text]);
 
+  const downloadReport = () => {
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'rca-report.md';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Stack direction="column" gap={2}>
       <Stack direction="row" gap={1} alignItems="center">
@@ -49,11 +61,18 @@ export function RcaReport({ timeline }: { timeline: Timeline }) {
       )}
 
       {hasRun && (
-        <div
-          className="markdown-html"
-          style={{ fontFamily: 'var(--font-family)', lineHeight: 1.5, padding: '0 1rem' }}
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
-        />
+        <>
+          <Stack direction="row" justifyContent="flex-end">
+            <Button size="sm" variant="secondary" onClick={downloadReport} disabled={!text}>
+              Download report
+            </Button>
+          </Stack>
+          <div
+            className="markdown-html"
+            style={{ fontFamily: 'var(--font-family)', lineHeight: 1.5, padding: '0 1rem' }}
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+        </>
       )}
     </Stack>
   );

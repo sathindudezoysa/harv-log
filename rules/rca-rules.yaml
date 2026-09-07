@@ -121,6 +121,11 @@ namespaces:
         severity: high
         category: storage
         description: Longhorn replica rebuild or scheduling failed.
+      - id: instance-manager-failure
+        regex: '(?i)(reading.*(failed|error)|error reading from wire)'
+        severity: high
+        category: storage
+        description: Longhorn instance manager failed or emitted an error.
 
   - name: kube-system
     patterns:
@@ -176,3 +181,9 @@ node_patterns:
     severity: high
     category: workload
     description: Container runtime or systemd service on the node failed.
+  - id: node-sigkill-error
+    regex: '(?i)SIGKILL'
+    severity: high
+    category: workload
+    description: A process or workload on the node was forcibly terminated with SIGKILL.
+    
