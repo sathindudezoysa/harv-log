@@ -1,20 +1,22 @@
 ARG grafana_version=13.1.0
 ARG grafana_image=grafana
 
-FROM golang:1.26.5-bookworm AS backend-build
+FROM --platform=$BUILDPLATFORM golang:1.26.5-bookworm AS backend-build
 WORKDIR /build
 COPY go.mod go.sum Magefile.go ./
 COPY pkg ./pkg
 COPY src ./src
-RUN go run github.com/magefile/mage@v1.17.2
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go run github.com/magefile/mage@v1.17.2
 
-FROM node:22-bookworm-slim AS frontend-build
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS frontend-build
 WORKDIR /build
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 COPY . .
 COPY --from=backend-build /build/dist ./dist
-RUN npm run build
+RUN --mount=type=cache,target=/root/.npm npm run build
 
 FROM grafana/${grafana_image}:${grafana_version}
 

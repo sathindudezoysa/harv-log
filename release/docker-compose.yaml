@@ -1,10 +1,9 @@
 services:
   loki:
-    image: ${LOKI_IMAGE:-grafana/loki:3.5.0}
+    image: ${LOKI_IMAGE:-ghcr.io/sathindudezoysa/harv-log-loki:latest}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:3100:3100"
     volumes:
-      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     restart: unless-stopped
@@ -16,11 +15,10 @@ services:
       start_period: 20s
 
   promtail:
-    image: ${PROMTAIL_IMAGE:-grafana/promtail:3.5.0}
+    image: ${PROMTAIL_IMAGE:-ghcr.io/sathindudezoysa/harv-log-promtail:latest}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:9080:9080"
     volumes:
-      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml:ro
       - ./bundle-logs:/var/log/bundle/bundle-logs:ro
       - promtail-positions:/tmp
     command: -config.file=/etc/promtail/config.yaml
@@ -36,7 +34,7 @@ services:
       start_period: 10s
 
   grafana:
-    image: ${HARV_LOGS_IMAGE:-harv-logs}:${HARV_LOGS_TAG:-13.1.0}
+    image: ${HARV_LOGS_IMAGE:-ghcr.io/sathindudezoysa/harv-log-grafana}:${HARV_LOGS_TAG:-latest}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
     environment:
@@ -47,7 +45,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - ./monitoring/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
       - grafana-data:/var/lib/grafana
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health | grep -q 'ok'"]

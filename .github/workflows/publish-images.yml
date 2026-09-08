@@ -51,22 +51,34 @@ jobs:
             grafana_image=grafana
             grafana_version=13.1.0
           push: true
+          cache-from: type=gha,scope=grafana
+          cache-to: type=gha,mode=max,scope=grafana
           tags: |
             ${{ env.IMAGE_PREFIX }}-grafana:${{ steps.tags.outputs.release_tag }}
             ${{ env.IMAGE_PREFIX }}-grafana:latest
 
-      - name: Publish Loki image to GHCR
-        shell: bash
-        run: |
-          docker buildx imagetools create \
-            --tag "${IMAGE_PREFIX}-loki:${{ steps.tags.outputs.release_tag }}" \
-            --tag "${IMAGE_PREFIX}-loki:latest" \
-            "$LOKI_IMAGE"
+      - name: Build and publish Loki image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./release/Dockerfile.loki
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha,scope=loki
+          cache-to: type=gha,mode=max,scope=loki
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-loki:${{ steps.tags.outputs.release_tag }}
+            ${{ env.IMAGE_PREFIX }}-loki:latest
 
-      - name: Publish Promtail image to GHCR
-        shell: bash
-        run: |
-          docker buildx imagetools create \
-            --tag "${IMAGE_PREFIX}-promtail:${{ steps.tags.outputs.release_tag }}" \
-            --tag "${IMAGE_PREFIX}-promtail:latest" \
-            "$PROMTAIL_IMAGE"
+      - name: Build and publish Promtail image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./release/Dockerfile.promtail
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha,scope=promtail
+          cache-to: type=gha,mode=max,scope=promtail
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-promtail:${{ steps.tags.outputs.release_tag }}
+            ${{ env.IMAGE_PREFIX }}-promtail:latest
