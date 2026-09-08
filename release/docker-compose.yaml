@@ -1,0 +1,62 @@
+services:
+  loki:
+    image: ${LOKI_IMAGE:-grafana/loki:3.5.0}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:3100:3100"
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3100/ready | grep -q Ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  promtail:
+    image: ${PROMTAIL_IMAGE:-grafana/promtail:3.5.0}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:9080:9080"
+    volumes:
+      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - ./bundle-logs:/var/log/bundle/bundle-logs:ro
+      - promtail-positions:/tmp
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9080/ready | grep -q ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  grafana:
+    image: ${HARV_LOGS_IMAGE:-harv-logs}:${HARV_LOGS_TAG:-13.1.0}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
+    environment:
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: harv-logs
+      GF_INSTALL_PLUGINS: grafana-llm-app
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - grafana-data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health | grep -q 'ok'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  loki-data:
+  promtail-positions:
+  grafana-data:
