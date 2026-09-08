@@ -5,7 +5,7 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -40,6 +40,16 @@ jobs:
         run: |
           release_tag="${{ github.event.release.tag_name }}"
           echo "release_tag=${release_tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Package and upload release bundle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        shell: bash
+        run: |
+          archive="harv-logs-${RELEASE_TAG#v}.tar.gz"
+          tar -czf "$archive" -C release docker-compose.yaml Makefile scripts
+          gh release upload "$RELEASE_TAG" "$archive" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Build and publish Grafana image
         uses: docker/build-push-action@v6

@@ -1,6 +1,6 @@
 services:
   loki:
-    image: ${LOKI_IMAGE:-ghcr.io/sathindudezoysa/harv-log-loki:latest}
+    image: ghcr.io/sathindudezoysa/harv-log-loki:latest
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:3100:3100"
     volumes:
@@ -15,7 +15,7 @@ services:
       start_period: 20s
 
   promtail:
-    image: ${PROMTAIL_IMAGE:-ghcr.io/sathindudezoysa/harv-log-promtail:latest}
+    image: ghcr.io/sathindudezoysa/harv-log-promtail:latest
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:9080:9080"
     volumes:
@@ -34,7 +34,7 @@ services:
       start_period: 10s
 
   grafana:
-    image: ${HARV_LOGS_IMAGE:-ghcr.io/sathindudezoysa/harv-log-grafana}:${HARV_LOGS_TAG:-latest}
+    image: ghcr.io/sathindudezoysa/harv-log-grafana:latest
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
     environment:
