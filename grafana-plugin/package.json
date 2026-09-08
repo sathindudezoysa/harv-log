@@ -11,10 +11,9 @@
     "lint:fix": "npm run lint -- --fix && prettier --write --list-different .",
     "e2e": "playwright test",
     "server": "docker compose up --build",
-    "docker:build:multiarch": "docker run --privileged --rm tonistiigi/binfmt --install arm64 >/dev/null && docker buildx rm --force harv-logs-builder >/dev/null 2>&1 || true; docker buildx create --name harv-logs-builder --driver docker-container --driver-opt network=host --use && docker buildx inspect --bootstrap && docker buildx build --platform linux/amd64,linux/arm64 --build-arg grafana_image=${GRAFANA_IMAGE:-grafana} --build-arg grafana_version=${GRAFANA_VERSION:-13.1.0} --tag ${IMAGE:-sathindu/harv-logs:latest} --file Dockerfile . --push",
     "sign": "sign-plugin"
   },
-  "author": "Wso2",
+  "author": "Sathindu Dhanushka",
   "license": "Apache-2.0",
   "devDependencies": {
     "@grafana/eslint-config": "^9.0.0",
