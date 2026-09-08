@@ -48,7 +48,9 @@ jobs:
         shell: bash
         run: |
           archive="harv-logs-${RELEASE_TAG#v}.tar.gz"
-          tar -czf "$archive" -C release docker-compose.yaml Makefile scripts
+          tar -czf "$archive" \
+            -C "$GITHUB_WORKSPACE/release" docker-compose.yaml Makefile \
+            -C "$GITHUB_WORKSPACE" scripts
           gh release upload "$RELEASE_TAG" "$archive" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Build and publish Grafana image
