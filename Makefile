@@ -55,9 +55,9 @@ push: image
 release:
 	rm -rf "$(RELEASE_DIR)" "$(RELEASE_DIR).tar.gz"
 	mkdir -p "$(RELEASE_DIR)/monitoring"
-	cp release/docker-compose.yaml release/Makefile release/load-logs.sh release/.env.example "$(RELEASE_DIR)/"
+	cp release/docker-compose.yaml release/Makefile "$(RELEASE_DIR)/"
+	cp -r scripts "$(RELEASE_DIR)/"
 	cp monitoring/*.yaml "$(RELEASE_DIR)/monitoring/"
-	chmod +x "$(RELEASE_DIR)/load-logs.sh"
 	tar -czf "$(RELEASE_DIR).tar.gz" -C releases "harv-logs-$(TAG)"
 	rm -rf "$(RELEASE_DIR)"
 	@echo "Created $(RELEASE_DIR).tar.gz"

@@ -1,4 +1,4 @@
-.PHONY: load up down clean
+.PHONY: help load up down clean
 
 # Default target
 help:
