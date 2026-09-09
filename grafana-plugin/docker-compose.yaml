@@ -5,16 +5,10 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ../configs/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - ./configs/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:3100/ready | grep -q Ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
 
   promtail:
     image: grafana/promtail:latest
@@ -22,42 +16,37 @@ services:
     ports:
       - "9080:9080"
     volumes:
-      - ../configs/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - ./configs/promtail-config.yaml:/etc/promtail/config.yaml:ro
       - ./bundle-logs:/var/log/bundle/bundle-logs:ro
-      - promtail-positions:/tmp
     command: -config.file=/etc/promtail/config.yaml
     depends_on:
-      loki:
-        condition: service_healthy
+      - loki
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:9080/ready | grep -q ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    user: root 
     ports:
-      - "3000:3000"
+      - "3000:3000/tcp"
     environment:
+      NODE_ENV: development
+      GF_LOG_FILTERS: plugin.harv-logs:debug
+      GF_LOG_LEVEL: debug
+      GF_DATAPROXY_LOGGING: 1
       GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: harv-logs
       GF_INSTALL_PLUGINS: grafana-llm-app
+      RCA_RULES_PATH: /var/lib/grafana/plugins/harv-logs/rules/rca-rules.yaml
+      
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_DEFAULT_APP_MODE: "development"
+    depends_on:
+      - loki
     restart: unless-stopped
     volumes:
       - ../configs/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-      - ./dist:/var/lib/grafana/plugins/harv-logs
-      - grafana-data:/var/lib/grafana
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health | grep -q 'ok'"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
+      - ./dist:/var/lib/grafana/plugins/harv-logs 
 volumes:
   loki-data:
-  promtail-positions:
-  grafana-data:
