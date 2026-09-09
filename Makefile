@@ -14,6 +14,7 @@ load:
 		echo "Usage: make load BUNDLE=path/to/support-bundle.zip"; \
 		exit 1; \
 	fi
+	bash scripts/download-plugin.sh
 	bash scripts/load-logs.sh "$(BUNDLE)"
 
 up:

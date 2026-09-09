@@ -5,7 +5,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./configs/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - ../configs/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     restart: unless-stopped
@@ -22,7 +22,7 @@ services:
     ports:
       - "9080:9080"
     volumes:
-      - ./configs/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - ../configs/promtail-config.yaml:/etc/promtail/config.yaml:ro
       - ./bundle-logs:/var/log/bundle/bundle-logs:ro
       - promtail-positions:/tmp
     command: -config.file=/etc/promtail/config.yaml
@@ -47,8 +47,8 @@ services:
       GF_INSTALL_PLUGINS: grafana-llm-app
     restart: unless-stopped
     volumes:
-      - ./configs/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-      - ./grafana-plugin/dist:/var/lib/grafana/plugins/harv-logs
+      - ../configs/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./dist:/var/lib/grafana/plugins/harv-logs
       - grafana-data:/var/lib/grafana
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health | grep -q 'ok'"]
