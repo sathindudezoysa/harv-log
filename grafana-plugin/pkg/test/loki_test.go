@@ -1,4 +1,4 @@
-package plugin
+package main_test
 
 import (
 	"context"
@@ -7,18 +7,28 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wso2/rca/pkg/plugin"
 )
 
-func TestBuildLabelQuery(t *testing.T) {
-	query, err := buildLabelQuery("k8s_namespace", `cattle-"system`)
+func TestFetchLogsBuildsLabelQuery(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("query") != `{k8s_namespace="cattle-\"system"}` {
+			t.Errorf("unexpected LogQL query: %s", r.URL.Query().Get("query"))
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":{"result":[]}}`))
+	}))
+	defer server.Close()
+	t.Setenv("GF_APP_URL", server.URL)
+
+	client := plugin.NewLokiClient()
+	_, err := client.FetchLogs(context.Background(), "loki", "k8s_namespace", `cattle-"system`, time.Unix(0, 0), time.Unix(1, 0))
 	if err != nil {
-		t.Fatalf("build label query: %v", err)
-	}
-	if query != `{k8s_namespace="cattle-\"system"}` {
-		t.Fatalf("unexpected query: %s", query)
+		t.Fatalf("fetch logs: %v", err)
 	}
 
-	if _, err := buildLabelQuery("namespace=", "cattle-system"); err == nil {
+	if _, err := client.FetchLogs(context.Background(), "loki", "namespace=", "cattle-system", time.Unix(0, 0), time.Unix(1, 0)); err == nil {
 		t.Fatal("expected invalid label name to fail")
 	}
 }
@@ -32,9 +42,9 @@ func TestQueryLogRangePreservesStreamLabels(t *testing.T) {
 		_, _ = w.Write([]byte(`{"data":{"result":[{"stream":{"namespace":"cattle-system","node":"worker-1"},"values":[["1700000000000000000","level=error failed"]]}]}}`))
 	}))
 	defer server.Close()
+	t.Setenv("GF_APP_URL", server.URL)
 
-	client := &LokiClient{grafanaBaseURL: server.URL, httpClient: server.Client()}
-	lines, err := client.FetchLogs(context.Background(), "loki", "namespace", "cattle-system", time.Unix(0, 0), time.Unix(1, 0))
+	lines, err := plugin.NewLokiClient().FetchLogs(context.Background(), "loki", "namespace", "cattle-system", time.Unix(0, 0), time.Unix(1, 0))
 	if err != nil {
 		t.Fatalf("fetch logs: %v", err)
 	}

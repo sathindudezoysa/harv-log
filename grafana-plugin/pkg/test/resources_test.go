@@ -1,4 +1,4 @@
-package plugin
+package main_test
 
 import (
 	"bytes"
@@ -7,44 +7,33 @@ import (
 	"testing"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/wso2/rca/pkg/plugin"
 )
 
-// mockCallResourceResponseSender implements backend.CallResourceResponseSender
-// for use in tests.
 type mockCallResourceResponseSender struct {
 	response *backend.CallResourceResponse
 }
 
-// Send sets the received *backend.CallResourceResponse to s.response
 func (s *mockCallResourceResponseSender) Send(response *backend.CallResourceResponse) error {
 	s.response = response
 	return nil
 }
 
-// TestCallResource tests CallResource calls, using backend.CallResourceRequest and backend.CallResourceResponse.
-// This ensures the httpadapter for CallResource works correctly.
 func TestCallResource(t *testing.T) {
-	// Initialize app
-	inst, err := NewApp(context.Background(), backend.AppInstanceSettings{})
+	inst, err := plugin.NewApp(context.Background(), backend.AppInstanceSettings{})
 	if err != nil {
 		t.Fatalf("new app: %s", err)
 	}
-	if inst == nil {
-		t.Fatal("inst must not be nil")
-	}
-	app, ok := inst.(*App)
+	app, ok := inst.(*plugin.App)
 	if !ok {
-		t.Fatal("inst must be of type *App")
+		t.Fatalf("inst must be of type *plugin.App")
 	}
 
-	// Set up and run test cases
 	for _, tc := range []struct {
-		name string
-
-		method string
-		path   string
-		body   []byte
-
+		name      string
+		method    string
+		path      string
+		body      []byte
 		expStatus int
 		expBody   []byte
 	}{
@@ -63,25 +52,24 @@ func TestCallResource(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Request by calling CallResource. This tests the httpadapter.
-			var r mockCallResourceResponseSender
+			var response mockCallResourceResponseSender
 			err = app.CallResource(context.Background(), &backend.CallResourceRequest{
 				Method: tc.method,
 				Path:   tc.path,
 				Body:   tc.body,
-			}, &r)
+			}, &response)
 			if err != nil {
 				t.Fatalf("CallResource error: %s", err)
 			}
-			if r.response == nil {
+			if response.response == nil {
 				t.Fatal("no response received from CallResource")
 			}
-			if tc.expStatus > 0 && tc.expStatus != r.response.Status {
-				t.Errorf("response status should be %d, got %d", tc.expStatus, r.response.Status)
+			if tc.expStatus != response.response.Status {
+				t.Errorf("response status should be %d, got %d", tc.expStatus, response.response.Status)
 			}
 			if len(tc.expBody) > 0 {
-				if tb := bytes.TrimSpace(r.response.Body); !bytes.Equal(tb, tc.expBody) {
-					t.Errorf("response body should be %s, got %s", tc.expBody, tb)
+				if body := bytes.TrimSpace(response.response.Body); !bytes.Equal(body, tc.expBody) {
+					t.Errorf("response body should be %s, got %s", tc.expBody, body)
 				}
 			}
 		})

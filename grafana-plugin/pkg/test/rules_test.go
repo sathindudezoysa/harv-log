@@ -1,9 +1,14 @@
-package plugin
+package main_test
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/wso2/rca/pkg/plugin"
+)
 
 func TestLoadShippedRuleset(t *testing.T) {
-	rules, err := LoadRuleset("rca-rules.yaml")
+	rules, err := plugin.LoadRuleset(filepath.Join("..", "..", "rules", "rca-rules.yaml"))
 	if err != nil {
 		t.Fatalf("load shipped ruleset: %v", err)
 	}
@@ -16,10 +21,10 @@ func TestLoadShippedRuleset(t *testing.T) {
 }
 
 func TestMatchLinesReturnsAllMatchingPatterns(t *testing.T) {
-	rules := Ruleset{
-		NamespacesRaw: []NamespaceRules{{
+	rules := plugin.Ruleset{
+		NamespacesRaw: []plugin.NamespaceRules{{
 			Name: "test-system",
-			Patterns: []Pattern{
+			Patterns: []plugin.Pattern{
 				{ID: "broad-error", Regex: `(?i)error`},
 				{ID: "connection-error", Regex: `(?i)connection.*error`},
 				{ID: "unrelated", Regex: `timeout`},
@@ -37,8 +42,8 @@ func TestMatchLinesReturnsAllMatchingPatterns(t *testing.T) {
 }
 
 func TestMatchNodeLinesReturnsNodePatterns(t *testing.T) {
-	rules := Ruleset{
-		NodePatterns: []Pattern{
+	rules := plugin.Ruleset{
+		NodePatterns: []plugin.Pattern{
 			{ID: "node-disk-pressure", Regex: `(?i)(No space left on device|DiskPressure)`},
 			{ID: "node-memory-pressure", Regex: `(?i)Out of memory`},
 		},
