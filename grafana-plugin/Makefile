@@ -23,4 +23,5 @@ down:
 	docker compose down -v
 
 clean:
-	rm -rf ./bundle-logs
+	rm -rf ../bundle-logs
+	rm -rf ./dist
