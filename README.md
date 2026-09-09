@@ -1,184 +1,136 @@
-# Harvester Support Bundle Log Analyzer
+# Harv Logs
 
-This project is a local analysis stack for Harvester support bundles. It extracts a support-bundle ZIP, expands nested node archives, ingests the logs into Loki, and makes them available through Grafana.
+Harv Logs is a local analysis stack for Harvester support bundles. It extracts the bundle, expands node archives, sends the logs to Loki through Promtail,and provides a Grafana app for incident timeline and root-cause analysis.
 
-The Grafana image is built locally from the custom plugin source. It includes the RCA application and installs the Grafana LLM plugin, allowing support engineers to inspect parsed errors, search related logs, and ask an AI assistant for help diagnosing an incident.
+The project is intended for support engineers who need to inspect a bundle without sending the raw logs to an external service. The optional AI features use Grafana's `grafana-llm-app` and therefore depend on that plugin's provider configuration and data-handling policies.
 
 ## How It Works
 
-1. `make load BUNDLE=...` clears the previous extracted bundle and extracts the new ZIP into `bundle-logs/`.
-2. ZIP files found in `nodes` directories are extracted so node logs are available to the collector.
-3. Docker Compose builds the custom Grafana image, then starts Loki, Promtail, and Grafana.
-4. Promtail rereads the bundle and sends logs to Loki.
-5. Promtail parses common Harvester log formats and adds labels such as `job`, `namespace`, `pod`, `container`, `node`, `service`, and `level`.
-6. Grafana provides log search, error analysis, and AI-assisted support workflows.
-
-## Prerequisites
-
-- Docker Engine with the Compose plugin (`docker compose`)
-- GNU Make
-- `unzip`
-- A Harvester support-bundle ZIP file
-- Network access to pull the container images on the first run
-- A `.env` file containing a strong `GF_SECURITY_ADMIN_PASSWORD` (copy `.env.example`)
-
-The commands below are intended to be run from this project directory.
-
-## Quick Start
-
-Prepare credentials, load a support bundle, and start the stack:
-
-```bash
-cp .env.example .env
-# Edit .env and set GF_SECURITY_ADMIN_PASSWORD
-make load BUNDLE=/path/to/support-bundle.zip
-```
-# Harv-logs
-
-Harv-logs is a local Grafana analysis stack for Harvester support bundles. It
-extracts a support-bundle ZIP, expands nested node archives, ships the logs to
-Loki with Promtail, and provides a Grafana app for timeline-based root-cause
-analysis and AI-assisted investigation.
-
-## Architecture
-
 ```text
-Support bundle ZIP
-				|
-				v
-scripts/load-logs.sh -> bundle-logs/ -> Promtail -> Loki
-																						 |
-																						 v
-															Grafana + Harv-logs app
+Harvester support-bundle.zip
+        |
+        v
+scripts/load-logs.sh
+        |
+        v
+bundle-logs/ --> Promtail --> Loki --> Grafana + Harv Logs app
 ```
 
-- **Promtail** reads extracted pod and node logs, normalizes common formats, and
-	adds labels such as `namespace`, `pod`, `container`, `node`, `service`, and
-	`level`.
-- **Loki** stores and indexes the imported logs using the configuration in
-	`monitoring/loki-config.yaml`.
-- **Grafana** provisions Loki and builds the custom `harv-logs` app from
-	`grafana-plugin/`.
-- **Harv-logs** correlates matching events with `grafana-plugin/rules/rca-rules.yaml`,
-	displays an incident timeline, and can generate an AI report through
-	`grafana-llm-app`.
+1. `make load BUNDLE=...` clears the previous extraction and unpacks the  support-bundle ZIP into `bundle-logs/`.
+2. ZIP files found in `nodes` directories are expanded so node logs are available to the collector.
+3. Docker Compose starts Loki, Promtail, and Grafana.
+4. Promtail rereads the bundle and sends normalized log entries to Loki.
+5. Grafana provisions the Loki datasource and loads the `harv-logs` app from   `dist/`.
+
+Promtail handles pod logs, node service logs, and root bundle logs. It extracts labels including `job`, `namespace`, `pod`, `container`, `node`, `service`, and `level`, and parses common JSON, logfmt, klog, and timestamped log formats.
 
 ## Requirements
 
-- Docker Engine with the Compose plugin (`docker compose`)
-- GNU Make and `unzip`
-- Node.js 22 and npm 11 for frontend development
-- Go 1.26 and Mage for backend development
-- A Harvester support-bundle ZIP file
-- Network access to pull images and install dependencies on first use
+For the local stack:
 
-Support bundles may contain sensitive cluster data. Keep `bundle-logs/`, Docker
-volumes, credentials, and AI-provider requests within your organization's data
-handling policy. Local `.env` files are ignored and must never be committed.
+- Docker Engine with the Compose plugin (`docker compose`)
+- GNU Make
+- `unzip`, `curl`, `jq`, and `tar`
+- A Harvester support-bundle ZIP file
+- Network access to download the released plugin and container images
+
+For plugin development:
+
+- Node.js 22 or newer
+- npm 11.16.0
+- Go 1.26.5
+- Mage
+
+Support bundles can contain sensitive cluster data. Keep extracted files, Docker volumes, credentials, and AI-provider requests within your organization's data-handling policy. The extracted `bundle-logs/` directory and local plugin distribution are ignored by Git.
 
 ## Quick Start
 
-Run these commands from the repository root:
+From the repository root, load a bundle and start the stack:
 
 ```bash
 make load BUNDLE=/absolute/path/to/support-bundle.zip
 ```
 
-The command clears the previous extracted bundle, expands nested archives,
-builds the local Grafana image, starts Loki, Promtail, and Grafana, and resets
-Promtail so the new logs are reread. Open:
+The command downloads the latest plugin release into `dist/`, extracts the bundle, builds and starts the Compose services,
+resets Promtail's positions, and restarts Promtail for a full reread.
 
-- Grafana: http://localhost:3000
-- Promtail: http://localhost:9080
-- Loki readiness: http://localhost:3100/ready
+Open these local endpoints:
 
-Set environment variables before starting Compose when needed. Common examples
-are `GF_SECURITY_ADMIN_PASSWORD`, `BIND_ADDRESS`, `GRAFANA_VERSION`,
-`HARV_LOGS_IMAGE`, and `HARV_LOGS_TAG`.
+| Service | URL |
+| --- | --- |
+| Grafana | http://localhost:3000 |
+| Promtail | http://localhost:9080 |
 
-## Commands
+The Compose configuration enables Grafana anonymous Admin access for local development and disables basic authentication. Do not expose this stack to an untrusted network without changing that configuration.
+
+## Make Commands
 
 | Command | Purpose |
 | --- | --- |
-| `make help` | Show available commands. |
+| `make help` | Show the available commands. |
 | `make load BUNDLE=/path/bundle.zip` | Extract and ingest a support bundle. |
-| `make build` | Build the custom Grafana image. |
-| `make build-images` | Build the custom Grafana, Loki, and Promtail images. |
-| `make up` | Build and start the local stack. |
-| `make down` | Stop the stack and retain named volumes. |
-| `make logs` | Follow logs from all services. |
-| `make clean` | Remove extracted support-bundle files. |
-| `make purge` | Stop the stack and remove all named volumes. |
-| `make push IMAGE=name TAG=version` | Push the images used by a release. |
-| `make release TAG=version` | Create a self-contained runtime tarball in `releases/`. |
+| `make up` | Start the Compose stack in the background. |
+| `make down` | Stop the stack and remove its Compose volumes. |
+| `make clean` | Remove extracted logs and the downloaded `dist/` plugin. |
+
+Use `HARV_LOGS_RELEASE_TAG` to select a plugin release when running `make load`, for example:
+
+```bash
+HARV_LOGS_RELEASE_TAG=v1.0.0 make load BUNDLE=/path/to/support-bundle.zip
+```
+
+If `dist/` already exists, the download script leaves it unchanged. Remove it with `make clean` to force a fresh plugin download.
 
 ## Grafana App
 
-After opening Grafana, configure the Harv-logs app with the Loki datasource UID,
-the namespace label, and an optional node label. Open **RCA**, select an incident
-window, review the correlated timeline, and generate a report or ask follow-up
-questions about an event. The app requires Grafana 12.3 or newer and the
-`grafana-llm-app` for AI features.
+The unsigned `harv-logs` Grafana app has two pages:
 
-In Grafana Explore, useful LogQL examples include:
+- **RCA** at `/a/harv-logs`: choose an incident window, query the configured   Loki datasource across the relevant namespaces, review the correlated timeline, and generate an AI-assisted report or follow-up questions.
+- **Configuration** at `/plugins/harv-logs`: manage plugin settings.
+
+The RCA page reads `lokiDatasourceUid` and an optional `nodeLabel` from the plugin's JSON settings. The bundled datasource is provisioned with the UID `loki`. The current configuration form still contains the older API URL/API key fields, so RCA settings may need to be supplied through Grafana plugin settings or updated in the plugin UI before analysis can run.
+
+The correlation rules are stored in
+[`grafana-plugin/rules/rca-rules.yaml`](grafana-plugin/rules/rca-rules.yaml)
+and are loaded by the backend. The backend exposes analysis, report streaming,
+chat streaming, and rule-reload operations to the frontend.
+
+Useful LogQL queries in Grafana Explore include:
 
 ```logql
 {job=~"pod-logs-.*"}
+{job="harvester-nodes"}
 {level="error"}
 {namespace="harvester-system"} |= "error"
 ```
+
+For plugin developers, see the
+[Grafana plugin development guide](grafana-plugin/README.md).
 
 ## Repository Layout
 
 | Path | Purpose |
 | --- | --- |
-| `Makefile` | Development, stack management, image, and release commands. |
-| `docker-compose.yaml` | Local stack that builds the Grafana plugin image. |
-| `release/` | Published-image Compose file, release Makefile, and image Dockerfiles. |
-| `scripts/load-logs.sh` | Shared bundle extraction and ingestion workflow. |
-| `monitoring/` | Loki, Promtail, and Grafana datasource configuration. |
-| `grafana-plugin/pkg/` | Go backend for Loki queries, rules, timeline, and AI calls. |
-| `grafana-plugin/src/` | React/TypeScript Grafana app frontend. |
-| `grafana-plugin/rules/` | Rule definitions used for event correlation. |
+| `Makefile` | Local stack commands. |
+| `docker-compose.yaml` | Loki, Promtail, and Grafana services. |
+| `configs/` | Loki, Promtail, and Grafana datasource configuration. |
+| `scripts/load-logs.sh` | Bundle extraction and ingestion workflow. |
+| `scripts/download-plugin.sh` | Downloads a published plugin archive. |
+| `grafana-plugin/pkg/` | Go backend for Loki queries, rules, timelines, and AI calls. |
+| `grafana-plugin/src/` | React and TypeScript Grafana app. |
+| `grafana-plugin/rules/` | RCA correlation rules. |
 | `grafana-plugin/tests/` | Browser end-to-end tests. |
+| `.github/workflows/publish-images.yml` | Builds and uploads plugin archives for published GitHub releases. |
 
-Generated output such as `grafana-plugin/dist/`, `node_modules/`, extracted
-`bundle-logs/`, and release archives is intentionally excluded from version
-control.
-
-## Development
-
-Install frontend dependencies and run the checks from `grafana-plugin/`:
-
-```bash
-npm ci
-npm run typecheck
-npm run lint
-npm run test:ci
-go test ./...
-```
-
-Use `npm run build` to build the frontend assets. The Docker build runs both the
-Go backend build and the frontend build, then packages them into Grafana.
-
-## Releases
-
-Build and publish images, then create the runtime archive:
-
-```bash
-make build-images TAG=13.1.0 IMAGE=ghcr.io/example/harv-logs
-make push TAG=13.1.0 IMAGE=ghcr.io/example/harv-logs
-make release TAG=13.1.0
-```
-
-The generated archive contains the published-image Compose file, release
-Makefile, shared loader script, and monitoring configuration. It does not contain
-support-bundle data, credentials, source dependencies, or build output.
+Generated files such as `bundle-logs/`, `dist/`, `node_modules/`, and release
+archives are intentionally excluded from version control.
 
 ## Troubleshooting
 
 - Check service state with `docker compose ps`.
 - Inspect ingestion with `docker compose logs promtail`.
-- Reload a bundle with `make load BUNDLE=/path/to/another-bundle.zip`.
-- Reset extracted data with `make clean`; reset Docker state with `make purge`.
-- Use an absolute bundle path if a relative path is not found.
+- Reload another bundle with `make load BUNDLE=/path/to/another-bundle.zip`.
+- Reset extracted data and the local plugin with `make clean`.
+- Confirm Promtail is ready at http://localhost:9080/ has blue phrased logs.
+- Set `HARV_LOGS_RELEASE_TAG` when the latest published plugin is not the one
+  you need.
