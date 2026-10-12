@@ -44,30 +44,36 @@ type Ruleset struct {
 	NodePatterns     []Pattern        `yaml:"node_patterns" json:"nodePatterns"`
 }
 
-func (r *Ruleset) warmRegexCache() {
+func (r *Ruleset) warmRegexCache() error {
 	for i := range r.NamespacesRaw {
 		for j := range r.NamespacesRaw[i].Patterns {
 			p := &r.NamespacesRaw[i].Patterns[j]
 			if p.compiled == nil {
-				// Compilation errors are swallowed here; MatchAll skips
-				// patterns that never compiled rather than failing the
-				// whole analysis over one bad regex in the YAML.
-				p.compiled, _ = regexp.Compile(p.Regex)
+				compiled, err := regexp.Compile(p.Regex)
+				if err != nil {
+					return fmt.Errorf("invalid regex for namespace %q pattern %q: %w", r.NamespacesRaw[i].Name, p.ID, err)
+				}
+				p.compiled = compiled
 			}
 		}
 	}
 	for i := range r.NodePatterns {
 		p := &r.NodePatterns[i]
 		if p.compiled == nil {
-			p.compiled, _ = regexp.Compile(p.Regex)
+			compiled, err := regexp.Compile(p.Regex)
+			if err != nil {
+				return fmt.Errorf("invalid regex for namespace %q pattern %q: %w", "node", p.ID, err)
+			}
+			p.compiled = compiled
 		}
 	}
+	return nil
 }
 
 // Namespaces returns the raw per-namespace pattern config, compiling regexes
 // lazily on first access.
 func (r *Ruleset) Namespaces() []NamespaceRules {
-	r.warmRegexCache()
+	_ = r.warmRegexCache()
 	return r.NamespacesRaw
 }
 
@@ -94,7 +100,7 @@ func (r *Ruleset) MatchLines(namespace, line string) []Pattern {
 
 func (r *Ruleset) MatchNodeLines(line string) []Pattern {
 	matches := make([]Pattern, 0)
-	r.warmRegexCache()
+	_ = r.warmRegexCache()
 	for _, p := range r.NodePatterns {
 		if p.compiled != nil && p.compiled.MatchString(line) {
 			matches = append(matches, p)
@@ -128,9 +134,9 @@ func LoadRuleset(path string) (*Ruleset, error) {
 	if err := decoder.Decode(&rs); err != nil {
 		return nil, err
 	}
-	// Warm the regex cache and surface any bad patterns early via logs
-	// rather than failing silently mid-analysis.
-	rs.warmRegexCache()
+	if err := rs.warmRegexCache(); err != nil {
+		return nil, err
+	}
 	namespaceCount := len(rs.Namespaces())
 	patternCount := 0
 	for _, namespace := range rs.NamespacesRaw {

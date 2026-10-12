@@ -40,8 +40,18 @@ export function LogChat({ event, messages, onMessagesChange, onDismiss }: Props)
       },
       controller.signal
     )
-      .catch((e) => setError(String(e?.message ?? e)))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (controller.signal.aborted || abortRef.current !== controller) {
+          return;
+        }
+        setError(String(e?.message ?? e));
+      })
+      .finally(() => {
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+          setLoading(false);
+        }
+      });
   };
 
   useEffect(() => {

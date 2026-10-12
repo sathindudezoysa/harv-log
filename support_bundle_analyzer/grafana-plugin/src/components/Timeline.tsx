@@ -36,7 +36,7 @@ function EventRow({ event, onAskAI }: { event: MatchedEvent; onAskAI: (event: Ma
             <Stack direction="column" gap={0.5}>
               <Stack direction="row" gap={1} alignItems="center">
                 <Badge color={SEVERITY_COLOR[event.severity] ?? 'blue'} text={event.severity} />
-                <Text weight="medium">{event.namespace}</Text>
+                <Text weight="medium">Namespace: {event.namespace}</Text>
                 {event.node && (
                   <Text color="secondary" variant="bodySmall">
                     {event.node}
@@ -85,12 +85,6 @@ export function Timeline({ timeline }: { timeline: TimelineData }) {
   const events = timeline.events ?? [];
   const warnings = timeline.warnings ?? [];
   const sorted = [...events].sort((a, b) => a.firstSeen.localeCompare(b.firstSeen));
-  const eventsByNamespace = sorted.reduce<Map<string, MatchedEvent[]>>((groups, event) => {
-    const namespaceEvents = groups.get(event.namespace) ?? [];
-    namespaceEvents.push(event);
-    groups.set(event.namespace, namespaceEvents);
-    return groups;
-  }, new Map());
 
   return (
     <Stack direction="column" gap={2}>
@@ -106,13 +100,8 @@ export function Timeline({ timeline }: { timeline: TimelineData }) {
       {sorted.length === 0 ? (
         <Text color="secondary">No pattern matches found in this window across the configured namespaces.</Text>
       ) : (
-        Array.from(eventsByNamespace, ([namespace, namespaceEvents]) => (
-          <Stack direction="column" gap={1.5} key={namespace}>
-            <Text variant="h6">Namespace: {namespace}</Text>
-            {namespaceEvents.map((event, i) => (
-              <EventRow key={`${event.namespace}-${event.patternId}-${i}`} event={event} onAskAI={openChat} />
-            ))}
-          </Stack>
+        sorted.map((event, i) => (
+          <EventRow key={`${event.namespace}-${event.patternId}-${i}`} event={event} onAskAI={openChat} />
         ))
       )}
       {chatEvent && (

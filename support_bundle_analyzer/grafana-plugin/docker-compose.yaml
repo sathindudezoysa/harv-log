@@ -31,12 +31,12 @@ services:
       - "3000:3000/tcp"
     environment:
       NODE_ENV: development
-      GF_LOG_FILTERS: plugin.harv-logs:debug
+      GF_LOG_FILTERS: plugin.harv-logs-app:debug
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: harv-logs
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: harv-logs-app
       GF_INSTALL_PLUGINS: grafana-llm-app
-      RCA_RULES_PATH: /var/lib/grafana/plugins/harv-logs/rules/rca-rules.yaml
+      RCA_RULES_PATH: /var/lib/grafana/plugins/harv-logs-app/rules/rca-rules.yaml
       
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
@@ -47,6 +47,7 @@ services:
     restart: unless-stopped
     volumes:
       - ../configs/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-      - ./dist:/var/lib/grafana/plugins/harv-logs 
+      - ./provisioning/plugins:/etc/grafana/provisioning/plugins:ro
+      - ./dist:/var/lib/grafana/plugins/harv-logs-app 
 volumes:
   loki-data:

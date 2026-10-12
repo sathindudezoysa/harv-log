@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -29,9 +31,17 @@ type LLMClient struct {
 	grafanaBaseURL string
 	httpClient     *http.Client
 	model          string
+	allowRawLogs   bool
+	grafanaToken   string
 }
 
-func NewLLMClient() *LLMClient {
+var (
+	logSecretPattern        = regexp.MustCompile(`(?i)(\b(?:api[_-]?key|token|password|passwd|secret|authorization)\b\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)`)
+	logBearerPattern        = regexp.MustCompile(`(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+`)
+	logURLCredentialPattern = regexp.MustCompile(`(?i)(https?://)[^/\s:@]+:[^@\s]+@`)
+)
+
+func NewLLMClient(tokens ...string) *LLMClient {
 	base := os.Getenv("GF_APP_URL")
 	if base == "" {
 		base = "http://localhost:3000"
@@ -40,10 +50,22 @@ func NewLLMClient() *LLMClient {
 	if model == "" {
 		model = "base"
 	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = (&net.Dialer{Timeout: 30 * time.Second}).DialContext
+	transport.TLSHandshakeTimeout = 10 * time.Second
+	transport.ResponseHeaderTimeout = 120 * time.Second
+	var token string
+	if len(tokens) > 0 {
+		token = tokens[0]
+	}
+	token = grafanaTokenForURL(base, token)
 	return &LLMClient{
 		grafanaBaseURL: base,
-		httpClient:     &http.Client{Timeout: 120 * time.Second},
+		httpClient:     newGrafanaHTTPClient(transport),
 		model:          model,
+		grafanaToken:   token,
+		// Raw support-bundle lines are excluded unless an administrator explicitly opts in.
+		allowRawLogs: strings.EqualFold(strings.TrimSpace(os.Getenv("RCA_LLM_ALLOW_RAW_LOGS")), "true"),
 	}
 }
 
@@ -80,7 +102,7 @@ supports. If the timeline doesn't clearly support a single root cause, say so
 and list the top competing hypotheses instead of forcing one answer.`
 
 func (c *LLMClient) StreamRCAReport(ctx context.Context, rules *Ruleset, timeline Timeline, onDelta func(string)) error {
-	userPrompt := buildUserPrompt(rules, timeline)
+	userPrompt := buildUserPrompt(rules, timeline, c.allowRawLogs)
 
 	body := map[string]interface{}{
 		"model": c.model,
@@ -100,6 +122,7 @@ func (c *LLMClient) StreamRCAReport(ctx context.Context, rules *Ruleset, timelin
 	if err != nil {
 		return err
 	}
+	applyGrafanaAuth(req, c.grafanaToken)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -154,6 +177,9 @@ func (c *LLMClient) StreamEventChat(ctx context.Context, event MatchedEvent, mes
 	if logLine == "" {
 		logLine = event.Sample
 	}
+	if !c.allowRawLogs {
+		logLine = redactSupportBundleLog(logLine)
+	}
 	contextMessage := fmt.Sprintf("Selected matched log event:\n- time: %s to %s\n- namespace: %s\n- category: %s\n- severity: %s\n- pattern: %s\n- count: %d\n- rule description: %s\n- log line: %s",
 		event.FirstSeen.Format(time.RFC3339), event.LastSeen.Format(time.RFC3339), event.Namespace,
 		event.Category, event.Severity, event.PatternID, event.Count, event.RuleDescription, logLine)
@@ -164,6 +190,12 @@ func (c *LLMClient) StreamEventChat(ctx context.Context, event MatchedEvent, mes
 		}
 	}
 	return c.streamMessages(ctx, chatMessages, onDelta)
+}
+
+func redactSupportBundleLog(logLine string) string {
+	redacted := logSecretPattern.ReplaceAllString(logLine, `${1}[REDACTED]`)
+	redacted = logBearerPattern.ReplaceAllString(redacted, "Bearer [REDACTED]")
+	return logURLCredentialPattern.ReplaceAllString(redacted, `${1}[REDACTED]@`)
 }
 
 const systemChatPrompt = `You are an SRE assistant helping investigate one filtered Harvester HCI log event. Use the event context supplied in the conversation, including its timestamp, namespace, severity, category, pattern, rule description, count, and representative log line. Answer follow-up questions precisely, distinguish evidence from inference, and ask for more context when the selected line is insufficient.`
@@ -179,6 +211,7 @@ func (c *LLMClient) streamMessages(ctx context.Context, messages []map[string]st
 	if err != nil {
 		return err
 	}
+	applyGrafanaAuth(req, c.grafanaToken)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -220,14 +253,18 @@ type openAIStreamChunk struct {
 	} `json:"choices"`
 }
 
-func buildUserPrompt(rules *Ruleset, timeline Timeline) string {
+func buildUserPrompt(rules *Ruleset, timeline Timeline, allowRawLogs bool) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Incident window: %s to %s\n\n", timeline.Window.From.Format(time.RFC3339), timeline.Window.To.Format(time.RFC3339))
 	fmt.Fprintf(&b, "Timeline (%d matched events, chronological):\n", len(timeline.Events))
 	for _, e := range timeline.Events {
+		sample := e.Sample
+		if !allowRawLogs {
+			sample = redactSupportBundleLog(sample)
+		}
 		fmt.Fprintf(&b, "- [%s] pattern=%s category=%s severity=%s count=%d (first=%s last=%s)\n  sample: %s\n",
 			e.Namespace, e.PatternID, e.Category, e.Severity, e.Count,
-			e.FirstSeen.Format(time.RFC3339), e.LastSeen.Format(time.RFC3339), e.Sample)
+			e.FirstSeen.Format(time.RFC3339), e.LastSeen.Format(time.RFC3339), sample)
 	}
 	return b.String()
 }

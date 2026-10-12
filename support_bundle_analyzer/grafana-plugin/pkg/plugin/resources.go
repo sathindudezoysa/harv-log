@@ -42,6 +42,7 @@ func (a *App) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
+	rules := a.rules.Load()
 
 	from, to, err := req.Window.parse()
 	if err != nil {
@@ -56,14 +57,14 @@ func (a *App) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 
 	namespaces := req.Namespaces
 	if len(namespaces) == 0 {
-		namespaces = a.rules.CorrelationOrder
+		namespaces = rules.CorrelationOrder
 	}
 
 	nodeLabel := req.NodeLabel
 	if nodeLabel == "" {
 		nodeLabel = a.settings.NodeLabel
 	}
-	timeline, err := BuildTimeline(ctx, a.loki, a.rules, uid, a.settings.NamespaceLabel, nodeLabel, namespaces, from, to)
+	timeline, err := BuildTimeline(ctx, a.loki, rules, uid, a.settings.NamespaceLabel, nodeLabel, namespaces, from, to)
 	if err != nil {
 		log.DefaultLogger.Error("analyze failed", "error", err)
 		writeErr(w, http.StatusBadGateway, err)
@@ -86,6 +87,7 @@ func (a *App) handleStreamReport(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
+	rules := a.rules.Load()
 
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -95,7 +97,7 @@ func (a *App) handleStreamReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := a.llm.StreamRCAReport(ctx, a.rules, req.Timeline, func(delta string) {
+	err := a.llm.StreamRCAReport(ctx, rules, req.Timeline, func(delta string) {
 		chunk, _ := json.Marshal(map[string]string{"delta": delta})
 		w.Write(chunk)
 		w.Write([]byte("\n"))
@@ -163,7 +165,7 @@ func (a *App) handleReloadRules(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	a.rules = rules
+	a.rules.Store(rules)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 

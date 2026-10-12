@@ -1,6 +1,6 @@
 # Harv Logs Grafana Plugin
 
-This directory contains the custom `harv-logs` Grafana app. It correlates Harvester support-bundle logs from Loki into an incident timeline and can use `grafana-llm-app` to generate AI-assisted root-cause analysis.
+This directory contains the custom `harv-logs-app` Grafana app. It correlates Harvester support-bundle logs from Loki into an incident timeline and can use `grafana-llm-app` to generate AI-assisted root-cause analysis.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ The plugin has two parts:
 - **Frontend:** React and TypeScript components built with webpack. It provides the RCA timeline, incident picker, report, chat, and configuration views.
 - **Backend:** A Go Grafana plugin executable named `gpx_rca`. It queries Loki, applies the RCA rules, builds the incident timeline, and proxies report and chat requests to the LLM app.
 
-Plugin metadata is defined in `src/plugin.json`. It registers the RCA page at `/a/harv-logs` and the Configuration page at `/plugins/harv-logs`. Grafana requires version 12.3 or newer, and the root stack provisions the Loki datasource with the UID `loki`.
+Plugin metadata is defined in `src/plugin.json`. It registers the RCA page at `/a/harv-logs-app` and the Configuration page at `/plugins/harv-logs-app`. Grafana requires version 12.3 or newer, and the root stack provisions the Loki datasource with the UID `loki`.
 
 ## Development Workflow
 
@@ -56,7 +56,7 @@ npm run server
 
 The `server` script starts the Compose setup in this directory. For an end-to-end RCA test, make sure Loki contains a loaded support bundle and that the Grafana plugin settings point to the correct Loki datasource UID.
 
-The production build writes the complete plugin bundle to `dist/`. The root project mounts that directory into Grafana as the unsigned `harv-logs` app.
+The production build writes the complete plugin bundle to `dist/`. The root project mounts that directory into Grafana as the unsigned `harv-logs-app` app.
 
 
 ### Supplementary Command Reference

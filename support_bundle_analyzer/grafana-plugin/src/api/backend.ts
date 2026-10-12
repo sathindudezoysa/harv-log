@@ -6,7 +6,7 @@ import type {
   MatchedEvent,
 } from '../types/rca';
 
-const PLUGIN_ID = 'harv-logs';
+const PLUGIN_ID = 'harv-logs-app';
 const RESOURCE_BASE = `/api/plugins/${PLUGIN_ID}/resources`;
 
 
@@ -41,9 +41,10 @@ export async function streamReport(
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let receivedDone = false;
 
   // eslint-disable-next-line no-constant-condition
-  while (true) {
+  while (!receivedDone) {
     const { done, value } = await reader.read();
     if (done) {
       break;
@@ -58,7 +59,7 @@ export async function streamReport(
       if (!line) {
         continue;
       }
-      let parsed: { delta?: string; error?: string };
+      let parsed: { delta?: string; error?: string; done?: boolean };
       try {
         parsed = JSON.parse(line);
       } catch (e) {
@@ -70,10 +71,17 @@ export async function streamReport(
       if (parsed.error) {
         throw new Error(parsed.error);
       }
+      if (parsed.done === true) {
+        receivedDone = true;
+      }
       if (parsed.delta) {
         onDelta(parsed.delta);
       }
     }
+  }
+
+  if (!receivedDone) {
+    throw new Error('RCA report stream ended before completion');
   }
 }
 
@@ -100,7 +108,8 @@ export async function streamChat(
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  while (true) {
+  let receivedDone = false;
+  while (!receivedDone) {
     const { done, value } = await reader.read();
     if (done) {
       break;
@@ -114,13 +123,20 @@ export async function streamChat(
       if (!line) {
         continue;
       }
-      const parsed: { delta?: string; error?: string } = JSON.parse(line);
+      const parsed: { delta?: string; error?: string; done?: boolean } = JSON.parse(line);
       if (parsed.error) {
         throw new Error(parsed.error);
+      }
+      if (parsed.done === true) {
+        receivedDone = true;
       }
       if (parsed.delta) {
         onDelta(parsed.delta);
       }
     }
+  }
+
+  if (!receivedDone) {
+    throw new Error('AI chat stream ended before completion');
   }
 }

@@ -8,7 +8,9 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -20,16 +22,23 @@ import (
 type LokiClient struct {
 	grafanaBaseURL string
 	httpClient     *http.Client
+	grafanaToken   string
 }
 
-func NewLokiClient() *LokiClient {
+func NewLokiClient(tokens ...string) *LokiClient {
 	base := os.Getenv("GF_APP_URL")
 	if base == "" {
 		base = "http://localhost:3000"
 	}
+	var token string
+	if len(tokens) > 0 {
+		token = tokens[0]
+	}
+	token = grafanaTokenForURL(base, token)
 	return &LokiClient{
 		grafanaBaseURL: base,
-		httpClient:     &http.Client{Timeout: 30 * time.Second},
+		httpClient:     newGrafanaHTTPClient(&http.Transport{Proxy: http.ProxyFromEnvironment}),
+		grafanaToken:   token,
 	}
 }
 
@@ -74,6 +83,54 @@ func buildLabelQuery(label, value string) (string, error) {
 // queryLogRange calls Loki's /loki/api/v1/query_range in "streams" mode
 // (log query, not metric query) and returns raw lines.
 func (c *LokiClient) queryLogRange(ctx context.Context, datasourceUID, query string, from, to time.Time) ([]LogLine, error) {
+	var lines []LogLine
+	seen := make(map[string]struct{})
+	pageStart := from
+	for {
+		page, err := c.queryLogPage(ctx, datasourceUID, query, pageStart, to)
+		if err != nil {
+			return nil, err
+		}
+		newEntries := 0
+		for _, line := range page {
+			cursor := logLineCursor(line)
+			if _, ok := seen[cursor]; ok {
+				continue
+			}
+			seen[cursor] = struct{}{}
+			lines = append(lines, line)
+			newEntries++
+		}
+		if len(page) < 5000 {
+			break
+		}
+
+		last := page[len(page)-1].Timestamp
+		if newEntries == 0 {
+			return nil, fmt.Errorf("loki query_range (logs) truncated at %s: unable to advance pagination without a usable entry cursor", last.UTC().Format(time.RFC3339Nano))
+		}
+		if last.Before(pageStart) || !last.Before(to) {
+			return nil, fmt.Errorf("loki query_range (logs) truncated at %s: unable to advance pagination", last.UTC().Format(time.RFC3339Nano))
+		}
+		pageStart = last
+	}
+
+	sort.SliceStable(lines, func(i, j int) bool {
+		return lines[i].Timestamp.Before(lines[j].Timestamp)
+	})
+	return lines, nil
+}
+
+func logLineCursor(line LogLine) string {
+	labels := make([]string, 0, len(line.Labels))
+	for key, value := range line.Labels {
+		labels = append(labels, key+"="+value)
+	}
+	sort.Strings(labels)
+	return strconv.FormatInt(line.Timestamp.UnixNano(), 10) + "\x00" + strings.Join(labels, "\x00") + "\x00" + line.Line
+}
+
+func (c *LokiClient) queryLogPage(ctx context.Context, datasourceUID, query string, from, to time.Time) ([]LogLine, error) {
 	u := fmt.Sprintf(
 		"%s/api/datasources/proxy/uid/%s/loki/api/v1/query_range?%s",
 		c.grafanaBaseURL, url.PathEscape(datasourceUID),
@@ -90,7 +147,7 @@ func (c *LokiClient) queryLogRange(ctx context.Context, datasourceUID, query str
 	if err != nil {
 		return nil, err
 	}
-
+	applyGrafanaAuth(req, c.grafanaToken)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -122,6 +179,9 @@ func (c *LokiClient) queryLogRange(ctx context.Context, datasourceUID, query str
 			})
 		}
 	}
+	sort.SliceStable(lines, func(i, j int) bool {
+		return lines[i].Timestamp.Before(lines[j].Timestamp)
+	})
 	return lines, nil
 }
 

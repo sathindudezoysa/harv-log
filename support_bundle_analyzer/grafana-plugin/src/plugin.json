@@ -2,14 +2,14 @@
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "app",
   "name": "Harvester Logs",
-  "id": "harv-logs",
+  "id": "harv-logs-app",
   "backend": true,
   "executable": "gpx_rca",
   "info": {
     "keywords": ["rca", "harvester", "loki", "llm", "root-cause-analysis"],
     "description": "Harv-logs correlates Harvester support-bundle logs from Loki into an incident timeline, then uses an LLM to explain likely root causes and next checks.",
     "author": {
-      "name": "Wso2"
+      "name": "wso2"
     },
     "logos": {
       "small": "img/logo.svg",

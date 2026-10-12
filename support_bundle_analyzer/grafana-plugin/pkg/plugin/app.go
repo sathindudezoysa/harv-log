@@ -3,7 +3,9 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
@@ -15,7 +17,7 @@ type App struct {
 	backend.CallResourceHandler
 
 	settings AppSettings
-	rules    *Ruleset
+	rules    atomic.Pointer[Ruleset]
 	loki     *LokiClient
 	llm      *LLMClient
 }
@@ -39,15 +41,15 @@ func NewApp(_ context.Context, settings backend.AppInstanceSettings) (instancemg
 	rules, err := LoadRuleset(rulesFilePath())
 	if err != nil {
 		log.DefaultLogger.Error("failed to load rca-rules.yaml", "error", err)
-		rules = &Ruleset{}
+		return nil, fmt.Errorf("load RCA ruleset: %w", err)
 	}
 
 	a := &App{
 		settings: jsonData,
-		rules:    rules,
-		loki:     NewLokiClient(),
-		llm:      NewLLMClient(),
+		loki:     NewLokiClient(settings.DecryptedSecureJSONData["grafanaToken"]),
+		llm:      NewLLMClient(settings.DecryptedSecureJSONData["grafanaToken"]),
 	}
+	a.rules.Store(rules)
 
 	mux := http.NewServeMux()
 	a.registerRoutes(mux)

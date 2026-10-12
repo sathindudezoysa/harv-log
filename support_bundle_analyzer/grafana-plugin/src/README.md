@@ -28,3 +28,7 @@ Harv-logs is a Grafana app for root-cause analysis of Harvester support-bundle l
 5. Review the correlated timeline, generate the AI root-cause report, or ask about a specific event.
 
 The correlation rules are packaged with the plugin in `rules/rca-rules.yaml`. The plugin uses the configured `grafana-llm-app` for report and event-chat responses.
+
+## Log privacy policy
+
+Event-chat prompts use the selected event's `LogLine`, or its `Sample` when no log line is available. Before the prompt is sent to the LLM provider, the default policy redacts values assigned to API keys, tokens, passwords, secrets, and authorization fields, bearer credentials, and credentials embedded in HTTP(S) URLs. The complete raw line is not sent unless the Grafana administrator explicitly sets `RCA_LLM_ALLOW_RAW_LOGS=true` in the plugin environment. Keep this setting unset or false unless the provider and incident-handling policy permit raw support-bundle data.
