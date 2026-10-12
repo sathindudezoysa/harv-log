@@ -27,6 +27,20 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate release inputs
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^support-bundle-analyzer/v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "::error::Release tag must be support-bundle-analyzer/vX.Y.Z"; exit 1; }
+
+          for file in \
+            support_bundle_analyzer/grafana-plugin/package-lock.json \
+            support_bundle_analyzer/grafana-plugin/go.mod \
+            support_bundle_analyzer/grafana-plugin/go.sum; do
+            [[ -f "$file" ]] || { echo "::error::Required release input is missing from tagged source: $file"; exit 1; }
+          done
+
       - name: Set up Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
@@ -66,6 +80,7 @@ jobs:
         run: tar -czf "$RUNNER_TEMP/harv-logs-app.tar.gz" -C support_bundle_analyzer dist
 
       - name: Publish tagged release
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
@@ -73,9 +88,6 @@ jobs:
           RELEASE_DESCRIPTION: >-
             Harv Logs is a local analysis stack for Harvester support bundles, combining Loki log search with Grafana incident timelines and root-cause analysis.
         run: |
-          [[ "$RELEASE_TAG" =~ ^support-bundle-analyzer/v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-            || { echo "::error::Release tag must be support-bundle-analyzer/vX.Y.Z"; exit 1; }
-
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$ARCHIVE" --clobber
           else
