@@ -1,5 +1,5 @@
 declare module 'replace-in-file-webpack-plugin' {
-  import { Compiler, Plugin } from 'webpack';
+  import type { Compiler, WebpackPluginInstance } from 'webpack';
 
   interface ReplaceRule {
     search: string | RegExp;
@@ -13,7 +13,7 @@ declare module 'replace-in-file-webpack-plugin' {
     rules: ReplaceRule[];
   }
 
-  class ReplaceInFilePlugin extends Plugin {
+  class ReplaceInFilePlugin implements WebpackPluginInstance {
     constructor(options?: ReplaceOption[]);
     options: ReplaceOption[];
     apply(compiler: Compiler): void;
@@ -24,7 +24,7 @@ declare module 'replace-in-file-webpack-plugin' {
 
 declare module 'webpack-livereload-plugin' {
   import { ServerOptions } from 'https';
-  import { Compiler, Plugin, Stats, Compilation } from 'webpack';
+  import type { Compiler, WebpackPluginInstance, Stats, Compilation } from 'webpack';
 
   interface Options extends Pick<ServerOptions, 'cert' | 'key' | 'pfx'> {
     /**
@@ -65,7 +65,7 @@ declare module 'webpack-livereload-plugin' {
     useSourceHash?: boolean | undefined;
   }
 
-  class LiveReloadPlugin extends Plugin {
+  class LiveReloadPlugin implements WebpackPluginInstance {
     readonly isRunning: boolean;
     constructor(options?: Options);
 
