@@ -77,7 +77,7 @@ jobs:
           mage -v
 
       - name: Package plugin
-        run: tar -czf "$RUNNER_TEMP/harv-logs-app.tar.gz" -C support_bundle_analyzer dist
+        run: tar -czf "$RUNNER_TEMP/harv-logs-app.tar.gz" -C support_bundle_analyzer/grafana-plugin dist
 
       - name: Publish tagged release
         if: success()
